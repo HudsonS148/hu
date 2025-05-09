@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Threes 2048</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #faf8ef;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin: 20px;
+    }
+    #score {
+      margin: 10px;
+      font-size: 24px;
+    }
+    #game-board {
+      width: 400px;
+      height: 400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 5px;
+      background-color: #bbada0;
+      padding: 5px;
+    }
+    .tile {
+      background: #cdc1b4;
+      font-size: 30px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100px;
+      border-radius: 5px;
+    }
+    .tile[data-value="3"] { background: #eee4da; color: #776e65; }
+    .tile[data-value="6"] { background: #ede0c8; color: #776e65; }
+    .tile[data-value="12"] { background: #f2b179; }
+    .tile[data-value="24"] { background: #f59563; }
+    .tile[data-value="48"] { background: #f67c5f; }
+    .tile[data-value="96"] { background: #f65e3b; }
+    .tile[data-value="192"] { background: #edcf72; }
+    .tile[data-value="384"] { background: #edcc61; }
+    .tile[data-value="768"] { background: #edc850; }
+    .tile[data-value="1536"] { background: #edc53f; }
+    .tile[data-value="3072"] { background: #edc22e; }
+    #game-over {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      font-size: 48px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Threes 2048</h1>
+  <div id="score">Score: 0</div>
+  <div id="game-board"></div>
+  <div id="game-over">Game Over!</div>
+
+  <script>
+    const board = [];
+    let score = 0;
+    const boardSize = 4;
+
+    function initBoard() {
+      for (let i = 0; i < boardSize; i++) {
+        board[i] = [];
+        for (let j = 0; j < boardSize; j++) {
+          board[i][j] = 0;
+        }
+      }
+      addNewTile();
+      addNewTile();
+      drawBoard();
+    }
+
+    function addNewTile() {
+      let empty = [];
+      for (let i = 0; i < boardSize; i++) {
+        for (let j = 0; j < boardSize; j++) {
+          if (board[i][j] === 0) empty.push({ i, j });
+        }
+      }
+      if (empty.length === 0) return;
+      let { i, j } = empty[Math.floor(Math.random() * empty.length)];
+      board[i][j] = Math.random() < 0.8 ? 3 : 6;
+    }
+
+    function drawBoard() {
+      const gameBoard = document.getElementById("game-board");
+      const scoreDisplay = document.getElementById("score");
+      gameBoard.innerHTML = "";
+      scoreDisplay.textContent = `Score: ${score}`;
+
+      for (let i = 0; i < boardSize; i++) {
+        for (let j = 0; j < boardSize; j++) {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          if (board[i][j] !== 0) {
+            tile.textContent = board[i][j];
+            tile.dataset.value = board[i][j];
+          }
+          gameBoard.appendChild(tile);
+        }
+      }
+    }
+
+    function slide(row) {
+      row = row.filter(val => val);
+      for (let i = 0; i < row.length - 1; i++) {
+        if (row[i] === row[i + 1]) {
+          score += row[i] * 2;
+          row[i] *= 2;
+          row[i + 1] = 0;
+        }
+      }
+      return row.filter(val => val).concat(Array(boardSize - row.filter(val => val).length).fill(0));
+    }
+
+    function rotateLeft(matrix) {
+      return matrix[0].map((_, i) => matrix.map(row => row[i])).reverse();
+    }
+
+    function rotateRight(matrix) {
+      return matrix[0].map((_, i) => matrix.map(row => row[i]).reverse());
+    }
+
+    function move(dir) {
+      let moved = false;
+      let newBoard = board.map(row => row.slice());
+
+      if (dir === 'left') {
+        for (let i = 0; i < boardSize; i++) {
+          let newRow = slide(board[i]);
+          if (newRow.toString() !== board[i].toString()) moved = true;
+          newBoard[i] = newRow;
+        }
+      } else if (dir === 'right') {
+        for (let i = 0; i < boardSize; i++) {
+          let newRow = slide(board[i].slice().reverse()).reverse();
+          if (newRow.toString() !== board[i].toString()) moved = true;
+          newBoard[i] = newRow;
+        }
+      } else if (dir === 'up') {
+        let rotated = rotateLeft(board);
+        for (let i = 0; i < boardSize; i++) {
+          rotated[i] = slide(rotated[i]);
+        }
+        newBoard = rotateRight(rotated);
+        moved = JSON.stringify(board) !== JSON.stringify(newBoard);
+      } else if (dir === 'down') {
+        let rotated = rotateLeft(board);
+        for (let i = 0; i < boardSize; i++) {
+          rotated[i] = slide(rotated[i].slice().reverse()).reverse();
+        }
+        newBoard = rotateRight(rotated);
+        moved = JSON.stringify(board) !== JSON.stringify(newBoard);
+      }
+
+      if (moved) {
+        for (let i = 0; i < boardSize; i++) {
+          board[i] = newBoard[i].slice();
+        }
+        addNewTile();
+        drawBoard();
+      } else if (isGameOver()) {
+        const overlay = document.getElementById("game-over");
+        overlay.style.display = "flex";
+        setTimeout(() => {
+          overlay.style.display = "none";
+          resetGame();
+        }, 2000);
+      }
+    }
+
+    function resetGame() {
+      score = 0;
+      initBoard();
+    }
+
+    function isGameOver() {
+      for (let i = 0; i < boardSize; i++) {
+        for (let j = 0; j < boardSize; j++) {
+          if (board[i][j] === 0) return false;
+          if (j < boardSize - 1 && board[i][j] === board[i][j + 1]) return false;
+          if (i < boardSize - 1 && board[i][j] === board[i + 1][j]) return false;
+        }
+      }
+      return true;
+    }
+
+    window.addEventListener("keydown", e => {
+      switch (e.key) {
+        case "ArrowLeft": move("left"); break;
+        case "ArrowRight": move("right"); break;
+        case "ArrowUp": move("up"); break;
+        case "ArrowDown": move("down"); break;
+      }
+    });
+
+    document.addEventListener("DOMContentLoaded", initBoard);
+  </script>
+</body>
+</html>
